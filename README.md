@@ -133,7 +133,7 @@ flowchart LR
 | `SDR_API_TOKEN` | Bearer token used by the browser client. | `sdr-dev-token` |
 | `SDR_RUNTIME_UPSTREAM` | Internal upstream host:port that NGINX proxies to from the UI container. | `sdr-runtime:8081` |
 | `UI_BIND` | Documented for deployment metadata/config rendering. | `0.0.0.0` |
-| `UI_PORT` | UI listen port. NGINX serves on this same port inside the container. | `3001` |
+| `UI_PORT` | Internal NGINX listen port inside the container. Docker Compose maps host port `3001` to this container port. | `80` |
 
 See `sdr-runtime/.env.example` and `sdr-webui/.env.example` for templates.
 
@@ -251,7 +251,7 @@ The web UI shows:
 
 1. Run `docker compose up --build`.
 2. Open `http://localhost:3001`.
-3. The stack starts with the built-in development token `sdr-dev-token` unless you override `SDR_API_TOKEN`.
+3. The stack starts with the built-in development token `sdr-dev-token` unless you override `SDR_API_TOKEN`, and Docker maps browser port `3001` to NGINX port `80` inside the container.
 4. Confirm the dashboard reports **Connected** and **Ready**.
 
 ### 2. Create an in-band channel

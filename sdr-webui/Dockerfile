@@ -11,5 +11,5 @@ COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=build /app/public/config.template.js /usr/share/nginx/html/config.template.js
-EXPOSE 3001
+EXPOSE 80
 ENTRYPOINT ["/docker-entrypoint.sh"]

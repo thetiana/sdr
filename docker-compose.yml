@@ -43,13 +43,13 @@ services:
     depends_on:
       - sdr-runtime
     ports:
-      - "3001:3001"
+      - "3001:80"
     environment:
       SDR_API_BASE_URL: /runtime-api
       SDR_API_TOKEN: sdr-dev-token
       SDR_RUNTIME_UPSTREAM: sdr-runtime:8081
       UI_BIND: 0.0.0.0
-      UI_PORT: 3001
+      UI_PORT: 80
     restart: unless-stopped
     networks:
       - sdr-net
