@@ -5,7 +5,7 @@ A production-oriented foundation for a **two-container, stateless SDR monitoring
 1. **`sdr-runtime`** — owns the SDR device abstraction, runtime radio state, dynamic channels, scanners, activity detection model, logical audio streams, metrics, and public API.
 2. **`sdr-webui`** — provides an operator-friendly dashboard that talks to `sdr-runtime` **only through the documented public API**.
 
-> This repository now includes an RTL-SDR startup path for real hardware testing and also keeps the mock provider for environments without an attached SDR. The DSP and hardware-specific portions are still structured for later expansion into fuller real-SDR integrations.
+> This repository includes both a real RTL-SDR path and a mock provider. The runtime now continuously processes incoming IQ blocks, performs in-band carrier/activity detection for configured channels, and buffers demodulated mono WAV audio for completed activities.
 
 ## Project Overview
 
@@ -76,9 +76,10 @@ flowchart LR
 - capability discovery endpoint.
 - versioned API under `/api/v1`.
 - dynamic channels with NFM, AM, and WFM validation.
+- live in-band RTL-SDR activity detection for enabled channels inside the current capture window.
 - scanner objects with conflict checks.
-- structured activities with unique `activity_id` values.
-- memory-only buffered activity audio with expiry.
+- structured activities with unique `activity_id` values driven either by live IQ processing or debug endpoints.
+- memory-only buffered demodulated WAV audio with expiry.
 - logical stream model without one Docker port per channel.
 - WebSocket event delivery.
 - JSON logs, health/readiness endpoints, and Prometheus metrics.
@@ -106,7 +107,7 @@ flowchart LR
 | `METRICS_ENABLED` | Enable `/metrics`. | `true` |
 | `LOG_LEVEL` | JSON log level. | `INFO` |
 | `SDR_SERIAL` | Preferred device serial. Set this for stable device selection in multi-SDR hosts. | unset |
-| `SDR_DRIVER` | SDR backend identifier. Docker Compose defaults to `rtl-sdr`; use `mock-soapysdr` to force mock mode. | `mock-soapysdr` |
+| `SDR_DRIVER` | SDR backend identifier. Docker Compose defaults to `rtl-sdr`; use `mock-soapysdr` for synthetic/debug runs without hardware. | `mock-soapysdr` |
 | `INITIAL_CENTER_FREQUENCY_HZ` | Startup center frequency. | `162400000` |
 | `INITIAL_SAMPLE_RATE_HZ` | Startup sample rate. | `2400000` |
 | `INITIAL_BANDWIDTH_HZ` | Startup bandwidth. | `2000000` |

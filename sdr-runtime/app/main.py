@@ -26,18 +26,32 @@ async def lifespan(app: FastAPI):
     app.state.radio_provider = provider
     app.state.runtime_state = RuntimeState(settings, capabilities, radio_state)
     stop_event = asyncio.Event()
+    last_sample_sequence = -1
 
     async def housekeeping() -> None:
         while not stop_event.is_set():
             await asyncio.sleep(30)
             app.state.runtime_state.cleanup_activity_audio()
 
-    task = asyncio.create_task(housekeeping())
+    async def sample_processing() -> None:
+        nonlocal last_sample_sequence
+        while not stop_event.is_set():
+            latest = getattr(provider, "get_latest_samples", lambda: None)()
+            if latest is not None:
+                sequence, iq_bytes = latest
+                if sequence != last_sample_sequence:
+                    last_sample_sequence = sequence
+                    await app.state.runtime_state.process_iq_samples(iq_bytes)
+            await asyncio.sleep(0.05)
+
+    housekeeping_task = asyncio.create_task(housekeeping())
+    sample_task = asyncio.create_task(sample_processing())
     try:
         yield
     finally:
         stop_event.set()
-        task.cancel()
+        housekeeping_task.cancel()
+        sample_task.cancel()
         provider.shutdown()
 
 

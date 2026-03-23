@@ -19,10 +19,29 @@ class RadioProvider(Protocol):
     def shutdown(self) -> None: ...
 
 
-class RtlSdrProvider:
+class SampleBufferMixin:
+    def __init__(self) -> None:
+        self._sample_lock = threading.Lock()
+        self._sample_sequence = 0
+        self._latest_samples: bytes | None = None
+
+    def _publish_samples(self, iq_bytes: bytes) -> None:
+        with self._sample_lock:
+            self._latest_samples = iq_bytes
+            self._sample_sequence += 1
+
+    def get_latest_samples(self) -> tuple[int, bytes] | None:
+        with self._sample_lock:
+            if self._latest_samples is None:
+                return None
+            return self._sample_sequence, self._latest_samples
+
+
+class RtlSdrProvider(SampleBufferMixin):
     LIBRARY_CANDIDATES = ("librtlsdr.so.0", "librtlsdr.so")
 
     def __init__(self, settings: Settings) -> None:
+        super().__init__()
         self.settings = settings
         self.library = self._load_library()
         self.device_handle = c_void_p()
@@ -201,6 +220,7 @@ class RtlSdrProvider:
         if rc != 0 or bytes_read.value <= 0:
             raise RuntimeError(f"RTL-SDR opened but sample read failed: rc={rc}, bytes_read={bytes_read.value}")
         self.last_samples_read = bytes_read.value
+        self._publish_samples(bytes(buffer[: bytes_read.value]))
 
     def _stream_loop(self) -> None:
         buffer_length = 16 * 1024
@@ -214,6 +234,8 @@ class RtlSdrProvider:
                 logger.error("RTL-SDR streaming read failed: rc=%s", rc)
                 return
             self.last_samples_read = bytes_read.value
+            if bytes_read.value > 0:
+                self._publish_samples(bytes(buffer[: bytes_read.value]))
 
     def _gain_controls(self) -> list[GainControl]:
         count = int(self.library.rtlsdr_get_tuner_gains(self.device_handle, None))
