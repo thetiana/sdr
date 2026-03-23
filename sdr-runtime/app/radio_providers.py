@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import ctypes
 import logging
-from ctypes import POINTER, byref, c_char_p, c_int, c_uint32, c_void_p, create_string_buffer
+import threading
+from ctypes import POINTER, byref, c_char_p, c_int, c_uint32, c_uint8, c_void_p, create_string_buffer
 from typing import Protocol
 
 from .config import Settings
@@ -27,6 +28,9 @@ class RtlSdrProvider:
         self.device_handle = c_void_p()
         self.device_index: int | None = None
         self.device_serial: str | None = None
+        self.stop_event = threading.Event()
+        self.reader_thread: threading.Thread | None = None
+        self.last_samples_read: int = 0
 
     def _load_library(self) -> ctypes.CDLL:
         errors: list[str] = []
@@ -64,12 +68,17 @@ class RtlSdrProvider:
         if hasattr(lib, "rtlsdr_set_bias_tee"):
             lib.rtlsdr_set_bias_tee.argtypes = [c_void_p, c_int]
             lib.rtlsdr_set_bias_tee.restype = c_int
+        lib.rtlsdr_reset_buffer.argtypes = [c_void_p]
+        lib.rtlsdr_reset_buffer.restype = c_int
+        lib.rtlsdr_read_sync.argtypes = [c_void_p, POINTER(c_uint8), c_int, POINTER(c_int)]
+        lib.rtlsdr_read_sync.restype = c_int
 
     def startup(self) -> tuple[RadioCapabilities, RadioState]:
         self.device_index, manufacturer, product, serial = self._select_device()
         self._open_device(self.device_index)
         self.device_serial = serial
         self._configure_device()
+        self._activate_streaming()
         capabilities = self._build_capabilities(product or "RTL-SDR", serial)
         state = RadioState(
             center_frequency_hz=self.settings.initial_center_frequency_hz,
@@ -85,6 +94,9 @@ class RtlSdrProvider:
         return capabilities, state
 
     def shutdown(self) -> None:
+        self.stop_event.set()
+        if self.reader_thread and self.reader_thread.is_alive():
+            self.reader_thread.join(timeout=1.0)
         if self.device_handle:
             try:
                 self.library.rtlsdr_close(self.device_handle)
@@ -173,6 +185,36 @@ class RtlSdrProvider:
         if rc != 0:
             raise RuntimeError(f"Unable to set RTL-SDR bias tee to {enabled}: rc={rc}")
 
+    def _activate_streaming(self) -> None:
+        rc = self.library.rtlsdr_reset_buffer(self.device_handle)
+        if rc != 0:
+            raise RuntimeError(f"Unable to reset RTL-SDR buffer before streaming: rc={rc}")
+        self._probe_read()
+        self.reader_thread = threading.Thread(target=self._stream_loop, name="rtl-sdr-reader", daemon=True)
+        self.reader_thread.start()
+
+    def _probe_read(self) -> None:
+        buffer_length = 16 * 1024
+        buffer = (c_uint8 * buffer_length)()
+        bytes_read = c_int()
+        rc = self.library.rtlsdr_read_sync(self.device_handle, buffer, buffer_length, byref(bytes_read))
+        if rc != 0 or bytes_read.value <= 0:
+            raise RuntimeError(f"RTL-SDR opened but sample read failed: rc={rc}, bytes_read={bytes_read.value}")
+        self.last_samples_read = bytes_read.value
+
+    def _stream_loop(self) -> None:
+        buffer_length = 16 * 1024
+        while not self.stop_event.is_set():
+            buffer = (c_uint8 * buffer_length)()
+            bytes_read = c_int()
+            rc = self.library.rtlsdr_read_sync(self.device_handle, buffer, buffer_length, byref(bytes_read))
+            if self.stop_event.is_set():
+                return
+            if rc != 0:
+                logger.error("RTL-SDR streaming read failed: rc=%s", rc)
+                return
+            self.last_samples_read = bytes_read.value
+
     def _gain_controls(self) -> list[GainControl]:
         count = int(self.library.rtlsdr_get_tuner_gains(self.device_handle, None))
         if count <= 0:
@@ -219,4 +261,6 @@ def create_radio_provider(settings: Settings) -> RadioProvider:
     driver = settings.sdr_driver.lower().strip()
     if driver in {"rtl-sdr", "rtlsdr", "rtl_sdr"}:
         return RtlSdrProvider(settings)
-    return ManagedMockSdrProvider(settings)
+    if driver in {"mock", "mock-soapysdr", "mock_soapysdr"}:
+        return ManagedMockSdrProvider(settings)
+    raise RuntimeError(f"Unsupported SDR_DRIVER {settings.sdr_driver!r}; expected rtl-sdr or mock-soapysdr")
