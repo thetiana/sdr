@@ -115,6 +115,7 @@ export function App() {
         refresh();
       },
       (status) => setConnected(status),
+      (message) => setError(message),
     );
     const interval = window.setInterval(refresh, 15000);
     return () => {

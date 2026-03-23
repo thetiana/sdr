@@ -14,9 +14,6 @@ function normalizeBase(base: string): string {
 
 function buildHttpUrl(path: string): string {
   const base = normalizeBase(apiBase);
-  if (/^https?:\/\//.test(base)) {
-    return `${base}${path}`;
-  }
   return `${base}${path}`;
 }
 
@@ -29,14 +26,29 @@ function buildWebSocketUrl(path: string): string {
   return `${protocol}//${window.location.host}${base}${path}`;
 }
 
+function parseJsonText<T>(text: string): T | null {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (!['{', '['].includes(trimmed[0])) {
+    return null;
+  }
+  return JSON.parse(trimmed) as T;
+}
+
+async function readJsonResponse<T>(response: Response): Promise<T | null> {
+  const text = await response.text();
+  try {
+    return parseJsonText<T>(text);
+  } catch (error) {
+    throw new Error(`Invalid JSON from runtime: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 async function requestAllowError<T>(path: string): Promise<{ ok: boolean; status: number; data: T | null }> {
   const response = await fetch(buildHttpUrl(path), { headers: { ...headers() } });
-  let data: T | null = null;
-  try {
-    data = (await response.json()) as T;
-  } catch {
-    data = null;
-  }
+  const data = await readJsonResponse<T>(response);
   return { ok: response.ok, status: response.status, data };
 }
 
@@ -56,7 +68,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (response.status === 204) {
     return undefined as T;
   }
-  return response.json() as Promise<T>;
+  const data = await readJsonResponse<T>(response);
+  if (data === null) {
+    throw new Error(`Runtime returned an empty or non-JSON response for ${path}`);
+  }
+  return data;
 }
 
 export const runtimeApi = {
@@ -80,13 +96,28 @@ export const runtimeApi = {
   fetchEvents: () => request<RuntimeEvent[]>('/api/v1/events'),
 };
 
-export function openEventSocket(onEvent: (event: RuntimeEvent) => void, onStatus: (connected: boolean) => void) {
+export function openEventSocket(
+  onEvent: (event: RuntimeEvent) => void,
+  onStatus: (connected: boolean) => void,
+  onProtocolError?: (message: string) => void,
+) {
   const wsBase = buildWebSocketUrl('/api/v1/events/ws');
   const wsUrl = apiToken ? `${wsBase}?token=${encodeURIComponent(apiToken)}` : wsBase;
   const socket = new WebSocket(wsUrl, []);
   socket.onopen = () => onStatus(true);
   socket.onclose = () => onStatus(false);
   socket.onerror = () => onStatus(false);
-  socket.onmessage = (message) => onEvent(JSON.parse(message.data) as RuntimeEvent);
+  socket.onmessage = (message) => {
+    try {
+      const event = parseJsonText<RuntimeEvent>(String(message.data));
+      if (!event) {
+        onProtocolError?.(`Received non-JSON WebSocket payload: ${String(message.data).slice(0, 120)}`);
+        return;
+      }
+      onEvent(event);
+    } catch (error) {
+      onProtocolError?.(`Invalid WebSocket JSON: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
   return socket;
 }
