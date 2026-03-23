@@ -12,9 +12,9 @@ services:
       API_PORT: 8081
       AUTH_TOKEN: sdr-dev-token
       CORS_ORIGINS: http://localhost:3001
-      SDR_SERIAL: ${SDR_SERIAL:-}
+      SDR_SERIAL: ${SDR_SERIAL:-001090}
       SDR_DRIVER: ${SDR_DRIVER:-rtl-sdr}
-      INITIAL_CENTER_FREQUENCY_HZ: ${INITIAL_CENTER_FREQUENCY_HZ:-162400000}
+      INITIAL_CENTER_FREQUENCY_HZ: ${INITIAL_CENTER_FREQUENCY_HZ:-447000000}
       INITIAL_SAMPLE_RATE_HZ: ${INITIAL_SAMPLE_RATE_HZ:-2400000}
       INITIAL_BANDWIDTH_HZ: ${INITIAL_BANDWIDTH_HZ:-2000000}
       INITIAL_ANTENNA: ${INITIAL_ANTENNA:-RX}
@@ -23,7 +23,8 @@ services:
       MAX_CHANNELS: ${MAX_CHANNELS:-32}
       MAX_SCANNERS: ${MAX_SCANNERS:-8}
       MAX_STREAMS: ${MAX_STREAMS:-32}
-    volumes:
+    privileged: true
+    devices:
       - /dev/bus/usb:/dev/bus/usb
     device_cgroup_rules:
       - 'c 189:* rmw'
