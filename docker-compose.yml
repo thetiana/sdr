@@ -11,22 +11,31 @@ services:
       API_PORT: 8080
       AUTH_TOKEN: ${SDR_API_TOKEN:-change-me}
       CORS_ORIGINS: http://localhost:3000
-      SDR_DRIVER: mock-soapysdr
-      INITIAL_CENTER_FREQUENCY_HZ: 162400000
-      INITIAL_SAMPLE_RATE_HZ: 2400000
-      INITIAL_BANDWIDTH_HZ: 2000000
-      INITIAL_ANTENNA: RX
-      STRICT_CAPABILITY_CHECK: "true"
-      RETUNE_POLICY: deny
-      MAX_CHANNELS: 32
-      MAX_SCANNERS: 8
-      MAX_STREAMS: 32
+      SDR_SERIAL: ${SDR_SERIAL:-}
+      SDR_INDEX: ${SDR_INDEX:-}
+      SDR_LABEL: ${SDR_LABEL:-}
+      SDR_DRIVER: ${SDR_DRIVER:-mock-soapysdr}
+      INITIAL_CENTER_FREQUENCY_HZ: ${INITIAL_CENTER_FREQUENCY_HZ:-162400000}
+      INITIAL_SAMPLE_RATE_HZ: ${INITIAL_SAMPLE_RATE_HZ:-2400000}
+      INITIAL_BANDWIDTH_HZ: ${INITIAL_BANDWIDTH_HZ:-2000000}
+      INITIAL_ANTENNA: ${INITIAL_ANTENNA:-RX}
+      STRICT_CAPABILITY_CHECK: ${STRICT_CAPABILITY_CHECK:-true}
+      RETUNE_POLICY: ${RETUNE_POLICY:-deny}
+      MAX_CHANNELS: ${MAX_CHANNELS:-32}
+      MAX_SCANNERS: ${MAX_SCANNERS:-8}
+      MAX_STREAMS: ${MAX_STREAMS:-32}
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+    device_cgroup_rules:
+      - 'c 189:* rmw'
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
       interval: 15s
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    networks:
+      - sdr-net
 
   sdr-webui:
     build:
@@ -37,8 +46,15 @@ services:
     ports:
       - "3000:3000"
     environment:
-      SDR_API_BASE_URL: http://sdr-runtime:8080
+      SDR_API_BASE_URL: /runtime-api
       SDR_API_TOKEN: ${SDR_API_TOKEN:-change-me}
+      SDR_RUNTIME_UPSTREAM: sdr-runtime:8080
       UI_BIND: 0.0.0.0
       UI_PORT: 3000
     restart: unless-stopped
+    networks:
+      - sdr-net
+
+networks:
+  sdr-net:
+    driver: bridge

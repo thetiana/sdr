@@ -34,8 +34,8 @@ flowchart LR
 
 ### How the containers interact
 
-- `sdr-webui` calls `sdr-runtime` REST endpoints for radio state, channels, scanners, activities, and streams.
-- `sdr-webui` subscribes to `sdr-runtime` WebSocket events for live status updates.
+- `sdr-webui` reverse-proxies browser requests to `sdr-runtime` over the internal Docker network so the browser never has to resolve the Compose service name directly.
+- `sdr-webui` subscribes to `sdr-runtime` WebSocket events through that same reverse-proxied path for live status updates.
 - no shared filesystem, database, or internal implementation coupling exists between the containers.
 
 ## Repository Structure
@@ -62,7 +62,7 @@ flowchart LR
     ├── public/
     ├── src/
     ├── Dockerfile
-    ├── nginx.conf
+    ├── nginx.conf.template
     ├── docker-entrypoint.sh
     ├── package.json
     └── .env.example
@@ -105,7 +105,7 @@ flowchart LR
 | `CORS_ORIGINS` | Comma-separated allowed UI origins. | `*` |
 | `METRICS_ENABLED` | Enable `/metrics`. | `true` |
 | `LOG_LEVEL` | JSON log level. | `INFO` |
-| `SDR_SERIAL` | Preferred device serial. | unset |
+| `SDR_SERIAL` | Preferred device serial. Set this for stable device selection in multi-SDR hosts. | unset |
 | `SDR_INDEX` | Preferred device index. | unset |
 | `SDR_LABEL` | Preferred device label. | unset |
 | `SDR_DRIVER` | SDR backend identifier. | `mock-soapysdr` |
@@ -131,8 +131,9 @@ flowchart LR
 
 | Variable | Description | Default |
 |---|---|---|
-| `SDR_API_BASE_URL` | Base URL for `sdr-runtime`. | `http://sdr-runtime:8080` |
+| `SDR_API_BASE_URL` | Browser-facing runtime base URL. Use `/runtime-api` when the UI reverse-proxies the runtime. | `/runtime-api` |
 | `SDR_API_TOKEN` | Optional bearer token used by the browser client. | unset |
+| `SDR_RUNTIME_UPSTREAM` | Internal upstream host:port that NGINX proxies to from the UI container. | `sdr-runtime:8080` |
 | `UI_BIND` | Documented for deployment metadata/config rendering. | `0.0.0.0` |
 | `UI_PORT` | UI listen port metadata. NGINX serves on port `3000`. | `3000` |
 
@@ -164,6 +165,7 @@ docker build -t sdr-webui ./sdr-webui
 
 ```bash
 export SDR_API_TOKEN=change-me
+export SDR_SERIAL=00000001   # replace with your SDR serial if you use hardware selection
 docker compose up --build
 ```
 
@@ -282,12 +284,15 @@ The web UI shows:
 
 - verify startup antenna, sample rate, and bandwidth match capability output;
 - if using strict mode, unsupported defaults intentionally fail startup;
+- set `SDR_SERIAL` when you want deterministic hardware selection;
+- confirm `/dev/bus/usb` is mounted into the runtime container and that the container has access to the USB device node;
 - inspect JSON logs from `sdr-runtime`.
 
-### UI shows disconnected
+### UI shows disconnected or the browser reports `NetworkError when attempting to fetch resource`
 
-- confirm `SDR_API_BASE_URL` points to the runtime container/service;
-- confirm CORS allows the UI origin if using a different deployment topology;
+- when running with Docker Compose, keep `SDR_API_BASE_URL=/runtime-api` so the browser uses the web UI container as a reverse proxy;
+- do **not** point the browser at `http://sdr-runtime:8080`, because that hostname only resolves inside the Docker network, not in the user browser;
+- confirm `SDR_RUNTIME_UPSTREAM=sdr-runtime:8080` and that both services are attached to the `sdr-net` Compose network;
 - confirm `SDR_API_TOKEN` matches `AUTH_TOKEN`.
 
 ### Channel creation fails

@@ -13,7 +13,8 @@ flowchart LR
 
 ## Design Notes
 
-- runtime connectivity is configured through environment variables rendered into `config.js` at container startup;
+- runtime connectivity is configured through environment variables rendered into `config.js` at container startup, with `/runtime-api` as the default browser-facing reverse-proxy path;
+- NGINX proxies `/runtime-api/*` to the internal runtime upstream so browser clients do not need Docker DNS visibility;
 - the UI does not read runtime internals or shared storage;
 - reconnect behavior is handled by periodic refresh plus WebSocket status changes;
 - operator-focused panels group device status, channels, scanners, and live events into a single dashboard.

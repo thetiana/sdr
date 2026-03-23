@@ -1,15 +1,36 @@
 import type { Activity, Channel, RadioCapabilities, RadioState, RuntimeEvent, Scanner, Stream } from './types';
 
 const runtimeConfig = window.__RUNTIME_CONFIG__ || {};
-const apiBase = runtimeConfig.SDR_API_BASE_URL || import.meta.env.VITE_SDR_API_BASE_URL || 'http://localhost:8080';
+const apiBase = runtimeConfig.SDR_API_BASE_URL || import.meta.env.VITE_SDR_API_BASE_URL || '/runtime-api';
 const apiToken = runtimeConfig.SDR_API_TOKEN || import.meta.env.VITE_SDR_API_TOKEN || '';
 
 function headers(): HeadersInit {
   return apiToken ? { Authorization: `Bearer ${apiToken}` } : {};
 }
 
+function normalizeBase(base: string): string {
+  return base.endsWith('/') ? base.slice(0, -1) : base;
+}
+
+function buildHttpUrl(path: string): string {
+  const base = normalizeBase(apiBase);
+  if (/^https?:\/\//.test(base)) {
+    return `${base}${path}`;
+  }
+  return `${base}${path}`;
+}
+
+function buildWebSocketUrl(path: string): string {
+  const base = normalizeBase(apiBase);
+  if (/^https?:\/\//.test(base)) {
+    return `${base.replace(/^http/, 'ws')}${path}`;
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}${base}${path}`;
+}
+
 async function requestAllowError<T>(path: string): Promise<{ ok: boolean; status: number; data: T | null }> {
-  const response = await fetch(`${apiBase}${path}`, { headers: { ...headers() } });
+  const response = await fetch(buildHttpUrl(path), { headers: { ...headers() } });
   let data: T | null = null;
   try {
     data = (await response.json()) as T;
@@ -20,7 +41,7 @@ async function requestAllowError<T>(path: string): Promise<{ ok: boolean; status
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${apiBase}${path}`, {
+  const response = await fetch(buildHttpUrl(path), {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -60,7 +81,7 @@ export const runtimeApi = {
 };
 
 export function openEventSocket(onEvent: (event: RuntimeEvent) => void, onStatus: (connected: boolean) => void) {
-  const wsBase = apiBase.replace(/^http/, 'ws') + '/api/v1/events/ws';
+  const wsBase = buildWebSocketUrl('/api/v1/events/ws');
   const wsUrl = apiToken ? `${wsBase}?token=${encodeURIComponent(apiToken)}` : wsBase;
   const socket = new WebSocket(wsUrl, []);
   socket.onopen = () => onStatus(true);

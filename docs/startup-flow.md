@@ -32,3 +32,10 @@
 ### Runtime event failures
 - `error` events surface operator-visible issues.
 - `overrun` events surface DSP pressure or sample loss conditions.
+
+## Container Deployment Notes
+
+- In Docker Compose, place both services on the same user-defined bridge network.
+- For browser access, terminate API traffic at the web UI container and reverse-proxy to `sdr-runtime` over the internal network.
+- For USB SDR access, mount `/dev/bus/usb` and allow USB character-device access (for example with device cgroup rules for major 189).
+- Set `SDR_SERIAL` when multiple SDRs may be present so startup selects the expected device deterministically.
