@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 
-from .config import Settings, get_settings
+from .config import get_settings
 from .dependencies import require_auth
 from .logging_utils import configure_logging
 from .routes import activities, channels, radio, scanners, streams, system
@@ -18,38 +17,14 @@ from .state import RuntimeState
 
 settings = get_settings()
 configure_logging(settings.log_level)
-logger = logging.getLogger(__name__)
-
-
-def _start_runtime_provider(active_settings: Settings):
-    provider = create_radio_provider(active_settings)
-    try:
-        capabilities, radio_state = provider.startup()
-        return provider, capabilities, radio_state, None
-    except RuntimeError as exc:
-        driver = active_settings.sdr_driver.lower().strip()
-        if driver not in {"rtl-sdr", "rtlsdr", "rtl_sdr"} or not active_settings.sdr_fallback_to_mock_on_error:
-            raise
-
-        logger.warning("RTL-SDR startup failed; falling back to mock provider: %s", exc)
-        try:
-            provider.shutdown()
-        except Exception:  # pragma: no cover - best effort cleanup
-            logger.exception("Failed to clean up RTL-SDR provider after startup error")
-
-        fallback_settings = active_settings.model_copy(update={"sdr_driver": "mock-soapysdr"})
-        fallback_provider = create_radio_provider(fallback_settings)
-        capabilities, radio_state = fallback_provider.startup()
-        radio_state.last_error = str(exc)
-        return fallback_provider, capabilities, radio_state, str(exc)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    provider, capabilities, radio_state, startup_error = _start_runtime_provider(settings)
+    provider = create_radio_provider(settings)
+    capabilities, radio_state = provider.startup()
     app.state.radio_provider = provider
     app.state.runtime_state = RuntimeState(settings, capabilities, radio_state)
-    app.state.startup_error = startup_error
     stop_event = asyncio.Event()
     last_sample_sequence = -1
 
@@ -71,10 +46,6 @@ async def lifespan(app: FastAPI):
 
     housekeeping_task = asyncio.create_task(housekeeping())
     sample_task = asyncio.create_task(sample_processing())
-    if startup_error:
-        await app.state.runtime_state.emit_error(
-            f"RTL-SDR startup failed, using mock provider instead: {startup_error}"
-        )
     try:
         yield
     finally:

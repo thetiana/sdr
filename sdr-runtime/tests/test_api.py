@@ -4,8 +4,7 @@ import time
 
 from fastapi.testclient import TestClient
 
-from app.config import Settings
-from app.main import _start_runtime_provider, app
+from app.main import app
 
 
 client = TestClient(app)
@@ -155,16 +154,3 @@ def test_mock_sample_processing_emits_activity_and_audio() -> None:
     assert audio.status_code == 200
     wav_bytes = base64.b64decode(audio.json()["base64_audio"])
     assert wav_bytes[:4] == b"RIFF"
-
-
-def test_rtl_startup_can_fallback_to_mock_provider() -> None:
-    settings = Settings(SDR_DRIVER="rtl-sdr", SDR_FALLBACK_TO_MOCK_ON_ERROR=True)
-
-    provider, capabilities, radio_state, startup_error = _start_runtime_provider(settings)
-
-    assert capabilities.driver == "mock-soapysdr"
-    assert radio_state.ready is True
-    assert radio_state.last_error is None or startup_error == radio_state.last_error
-    assert startup_error is not None
-    assert "RTL-SDR" in startup_error or "librtlsdr" in startup_error or "No RTL-SDR devices detected" in startup_error
-    provider.shutdown()
