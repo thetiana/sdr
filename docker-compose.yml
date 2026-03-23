@@ -1,0 +1,60 @@
+version: '3.9'
+services:
+  sdr-runtime:
+    build:
+      context: ./sdr-runtime
+    container_name: sdr-runtime
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8081"]
+    ports:
+      - "8081:8081"
+    environment:
+      API_BIND: 0.0.0.0
+      API_PORT: 8081
+      AUTH_TOKEN: sdr-dev-token
+      CORS_ORIGINS: http://localhost:3001
+      SDR_SERIAL: ${SDR_SERIAL:-001090}
+      SDR_DRIVER: ${SDR_DRIVER:-rtl-sdr}
+      INITIAL_CENTER_FREQUENCY_HZ: ${INITIAL_CENTER_FREQUENCY_HZ:-447000000}
+      INITIAL_SAMPLE_RATE_HZ: ${INITIAL_SAMPLE_RATE_HZ:-2400000}
+      INITIAL_BANDWIDTH_HZ: ${INITIAL_BANDWIDTH_HZ:-2000000}
+      INITIAL_ANTENNA: ${INITIAL_ANTENNA:-RX}
+      STRICT_CAPABILITY_CHECK: ${STRICT_CAPABILITY_CHECK:-true}
+      RETUNE_POLICY: ${RETUNE_POLICY:-deny}
+      MAX_CHANNELS: ${MAX_CHANNELS:-32}
+      MAX_SCANNERS: ${MAX_SCANNERS:-8}
+      MAX_STREAMS: ${MAX_STREAMS:-32}
+    privileged: true
+    devices:
+      - /dev/bus/usb:/dev/bus/usb
+    device_cgroup_rules:
+      - 'c 189:* rmw'
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/healthz')"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - sdr-net
+
+  sdr-webui:
+    build:
+      context: ./sdr-webui
+    container_name: sdr-webui
+    depends_on:
+      - sdr-runtime
+    ports:
+      - "3001:80"
+    environment:
+      SDR_API_BASE_URL: /runtime-api
+      SDR_API_TOKEN: sdr-dev-token
+      SDR_RUNTIME_UPSTREAM: sdr-runtime:8081
+      UI_BIND: 0.0.0.0
+      UI_PORT: 80
+    restart: unless-stopped
+    networks:
+      - sdr-net
+
+networks:
+  sdr-net:
+    driver: bridge

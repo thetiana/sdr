@@ -1,0 +1,18 @@
+{
+  "label": "NOAA Weather",
+  "frequency_hz": 162400000,
+  "modulation": "NFM",
+  "bandwidth_hz": 12500,
+  "audio_rate_hz": 16000,
+  "enabled": true,
+  "muted": false,
+  "priority": 50,
+  "squelch_threshold_db": -70,
+  "squelch_hang_ms": 400,
+  "audio_activity_threshold_dbfs": -35,
+  "activity_attack_ms": 120,
+  "activity_release_ms": 650,
+  "minimum_active_ms": 500,
+  "pre_roll_ms": 1000,
+  "post_roll_ms": 1000
+}
