@@ -101,13 +101,11 @@ flowchart LR
 |---|---|---|
 | `API_BIND` | Bind address for the API server. | `0.0.0.0` |
 | `API_PORT` | API listening port. | `8080` |
-| `AUTH_TOKEN` | Optional bearer token for REST and WebSocket auth. | unset |
-| `CORS_ORIGINS` | Comma-separated allowed UI origins. | `*` |
+| `AUTH_TOKEN` | Bearer token for REST and WebSocket auth. | `sdr-dev-token` |
+| `CORS_ORIGINS` | Comma-separated allowed UI origins. | `http://localhost:3001` |
 | `METRICS_ENABLED` | Enable `/metrics`. | `true` |
 | `LOG_LEVEL` | JSON log level. | `INFO` |
 | `SDR_SERIAL` | Preferred device serial. Set this for stable device selection in multi-SDR hosts. | unset |
-| `SDR_INDEX` | Preferred device index. | unset |
-| `SDR_LABEL` | Preferred device label. | unset |
 | `SDR_DRIVER` | SDR backend identifier. | `mock-soapysdr` |
 | `INITIAL_CENTER_FREQUENCY_HZ` | Startup center frequency. | `162400000` |
 | `INITIAL_SAMPLE_RATE_HZ` | Startup sample rate. | `2400000` |
@@ -132,7 +130,7 @@ flowchart LR
 | Variable | Description | Default |
 |---|---|---|
 | `SDR_API_BASE_URL` | Browser-facing runtime base URL. Use `/runtime-api` when the UI reverse-proxies the runtime. | `/runtime-api` |
-| `SDR_API_TOKEN` | Optional bearer token used by the browser client. | unset |
+| `SDR_API_TOKEN` | Bearer token used by the browser client. | `sdr-dev-token` |
 | `SDR_RUNTIME_UPSTREAM` | Internal upstream host:port that NGINX proxies to from the UI container. | `sdr-runtime:8080` |
 | `UI_BIND` | Documented for deployment metadata/config rendering. | `0.0.0.0` |
 | `UI_PORT` | UI listen port metadata. NGINX serves on port `3000`. | `3000` |
@@ -164,14 +162,12 @@ docker build -t sdr-webui ./sdr-webui
 ### Docker Compose
 
 ```bash
-export SDR_API_TOKEN=change-me
-export SDR_SERIAL=00000001   # replace with your SDR serial if you use hardware selection
 docker compose up --build
 ```
 
-- Runtime API: `http://localhost:8080`
-- Runtime docs: `http://localhost:8080/docs`
-- Web UI: `http://localhost:3000`
+- Runtime API: `http://localhost:8081`
+- Runtime docs: `http://localhost:8081/docs`
+- Web UI: `http://localhost:3001`
 
 ### Standalone runtime
 
@@ -209,33 +205,33 @@ npm run dev
 Create a channel:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/channels \
+curl -X POST http://localhost:8081/api/v1/channels \
   -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer change-me' \
+  -H 'Authorization: Bearer sdr-dev-token' \
   -d @examples/runtime-channel-create.json
 ```
 
 Create a scanner:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/scanners \
+curl -X POST http://localhost:8081/api/v1/scanners \
   -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer change-me' \
+  -H 'Authorization: Bearer sdr-dev-token' \
   -d @examples/runtime-scanner-create.json
 ```
 
 Trigger a simulated activity window for demo/testing:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/debug/channels/<channel-id>/activate \
-  -H 'Authorization: Bearer change-me'
+curl -X POST http://localhost:8081/api/v1/debug/channels/<channel-id>/activate \
+  -H 'Authorization: Bearer sdr-dev-token'
 ```
 
 Fetch memory-only buffered audio metadata:
 
 ```bash
-curl http://localhost:8080/api/v1/activities/<activity-id>/audio \
-  -H 'Authorization: Bearer change-me'
+curl http://localhost:8081/api/v1/activities/<activity-id>/audio \
+  -H 'Authorization: Bearer sdr-dev-token'
 ```
 
 ## UI Overview
@@ -253,9 +249,9 @@ The web UI shows:
 
 ### 1. Bring up the stack
 
-1. Set `SDR_API_TOKEN`.
-2. Run `docker compose up --build`.
-3. Open `http://localhost:3000`.
+1. Run `docker compose up --build`.
+2. Open `http://localhost:3001`.
+3. The stack starts with the built-in development token `sdr-dev-token` unless you override `SDR_API_TOKEN`.
 4. Confirm the dashboard reports **Connected** and **Ready**.
 
 ### 2. Create an in-band channel
@@ -291,9 +287,10 @@ The web UI shows:
 ### UI shows disconnected or the browser reports `NetworkError when attempting to fetch resource`
 
 - when running with Docker Compose, keep `SDR_API_BASE_URL=/runtime-api` so the browser uses the web UI container as a reverse proxy;
+- open the UI on `http://localhost:3001` and the direct runtime API on `http://localhost:8081`;
 - do **not** point the browser at `http://sdr-runtime:8080`, because that hostname only resolves inside the Docker network, not in the user browser;
 - confirm `SDR_RUNTIME_UPSTREAM=sdr-runtime:8080` and that both services are attached to the `sdr-net` Compose network;
-- confirm `SDR_API_TOKEN` matches `AUTH_TOKEN`.
+- confirm `SDR_API_TOKEN` matches `AUTH_TOKEN` (default: `sdr-dev-token`).
 
 ### Channel creation fails
 
