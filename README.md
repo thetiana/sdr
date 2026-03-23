@@ -100,7 +100,7 @@ flowchart LR
 | Variable | Description | Default |
 |---|---|---|
 | `API_BIND` | Bind address for the API server. | `0.0.0.0` |
-| `API_PORT` | API listening port. | `8080` |
+| `API_PORT` | API listening port. | `8081` |
 | `AUTH_TOKEN` | Bearer token for REST and WebSocket auth. | `sdr-dev-token` |
 | `CORS_ORIGINS` | Comma-separated allowed UI origins. | `http://localhost:3001` |
 | `METRICS_ENABLED` | Enable `/metrics`. | `true` |
@@ -131,9 +131,9 @@ flowchart LR
 |---|---|---|
 | `SDR_API_BASE_URL` | Browser-facing runtime base URL. Use `/runtime-api` when the UI reverse-proxies the runtime. | `/runtime-api` |
 | `SDR_API_TOKEN` | Bearer token used by the browser client. | `sdr-dev-token` |
-| `SDR_RUNTIME_UPSTREAM` | Internal upstream host:port that NGINX proxies to from the UI container. | `sdr-runtime:8080` |
+| `SDR_RUNTIME_UPSTREAM` | Internal upstream host:port that NGINX proxies to from the UI container. | `sdr-runtime:8081` |
 | `UI_BIND` | Documented for deployment metadata/config rendering. | `0.0.0.0` |
-| `UI_PORT` | UI listen port metadata. NGINX serves on port `3000`. | `3000` |
+| `UI_PORT` | UI listen port. NGINX serves on this same port inside the container. | `3001` |
 
 See `sdr-runtime/.env.example` and `sdr-webui/.env.example` for templates.
 
@@ -176,7 +176,7 @@ cd sdr-runtime
 python -m venv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8080
+uvicorn app.main:app --host 0.0.0.0 --port 8081
 ```
 
 ### Standalone UI
@@ -288,8 +288,8 @@ The web UI shows:
 
 - when running with Docker Compose, keep `SDR_API_BASE_URL=/runtime-api` so the browser uses the web UI container as a reverse proxy;
 - open the UI on `http://localhost:3001` and the direct runtime API on `http://localhost:8081`;
-- do **not** point the browser at `http://sdr-runtime:8080`, because that hostname only resolves inside the Docker network, not in the user browser;
-- confirm `SDR_RUNTIME_UPSTREAM=sdr-runtime:8080` and that both services are attached to the `sdr-net` Compose network;
+- do **not** point the browser at `http://sdr-runtime:8081`, because that hostname only resolves inside the Docker network, not in the user browser;
+- confirm `SDR_RUNTIME_UPSTREAM=sdr-runtime:8081` and that both services are attached to the `sdr-net` Compose network;
 - confirm `SDR_API_TOKEN` matches `AUTH_TOKEN` (default: `sdr-dev-token`).
 
 ### Channel creation fails

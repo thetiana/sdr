@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     app_name: str = "sdr-runtime"
     app_version: str = "0.1.0"
     api_bind: str = Field(default="0.0.0.0", alias="API_BIND")
-    api_port: int = Field(default=8080, alias="API_PORT")
+    api_port: int = Field(default=8081, alias="API_PORT")
     auth_token: str | None = Field(default=None, alias="AUTH_TOKEN")
     cors_origins: str = Field(default="*", alias="CORS_ORIGINS")
     metrics_enabled: bool = Field(default=True, alias="METRICS_ENABLED")
