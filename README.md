@@ -5,7 +5,7 @@ A production-oriented foundation for a **two-container, stateless SDR monitoring
 1. **`sdr-runtime`** — owns the SDR device abstraction, runtime radio state, dynamic channels, scanners, activity detection model, logical audio streams, metrics, and public API.
 2. **`sdr-webui`** — provides an operator-friendly dashboard that talks to `sdr-runtime` **only through the documented public API**.
 
-> This repository ships a working control plane and UI foundation with a SoapySDR-style mock provider so it can run everywhere, including ARM64 development targets such as Raspberry Pi. The DSP and hardware-specific portions are intentionally structured for later replacement with real SDR integrations.
+> This repository now includes an RTL-SDR startup path for real hardware testing and also keeps the mock provider for environments without an attached SDR. The DSP and hardware-specific portions are still structured for later expansion into fuller real-SDR integrations.
 
 ## Project Overview
 
@@ -106,7 +106,7 @@ flowchart LR
 | `METRICS_ENABLED` | Enable `/metrics`. | `true` |
 | `LOG_LEVEL` | JSON log level. | `INFO` |
 | `SDR_SERIAL` | Preferred device serial. Set this for stable device selection in multi-SDR hosts. | unset |
-| `SDR_DRIVER` | SDR backend identifier. | `mock-soapysdr` |
+| `SDR_DRIVER` | SDR backend identifier. Docker Compose defaults to `rtl-sdr`; use `mock-soapysdr` to force mock mode. | `mock-soapysdr` |
 | `INITIAL_CENTER_FREQUENCY_HZ` | Startup center frequency. | `162400000` |
 | `INITIAL_SAMPLE_RATE_HZ` | Startup sample rate. | `2400000` |
 | `INITIAL_BANDWIDTH_HZ` | Startup bandwidth. | `2000000` |
@@ -310,7 +310,7 @@ The web UI shows:
 
 ## Limitations
 
-- this foundation uses a mock SDR provider rather than real SoapySDR hardware bindings;
+- this foundation now supports RTL-SDR hardware initialization, but the wider DSP/audio pipeline is still mostly scaffolded and mock-friendly;
 - audio transport is represented logically and via demo HTTP chunking rather than real demodulated PCM;
 - activity audio payloads are demo placeholders to validate the API shape;
 - runtime state is intentionally non-persistent.

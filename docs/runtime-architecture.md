@@ -18,7 +18,7 @@ flowchart LR
 ## Core Components
 
 - **Configuration layer**: Pydantic settings load device selection, limits, startup defaults, auth, and observability controls from environment variables.
-- **Mock SDR provider**: A SoapySDR-style capability abstraction returns capability data and validates startup defaults. It is structured so a real provider can replace `MockSdrProvider` later.
+- **Radio provider layer**: the runtime can start either the real RTL-SDR provider or the mock provider. The RTL-SDR path opens hardware, applies startup settings, and exposes real device identity/capabilities; the mock path remains available for development without hardware.
 - **Runtime state manager**: Holds radio state, channel objects, scanners, streams, activities, and the event bus. All mutable state is protected by a single async lock for predictable concurrency.
 - **Event bus**: Stores a bounded event history and fan-outs live events to WebSocket subscribers.
 - **Metrics**: Prometheus counters and gauges expose current activity and overrun counts.
@@ -42,7 +42,7 @@ This implementation provides a production-oriented software structure instead of
 3. each channel maps to a logical stream object and activity thresholds;
 4. scanners are separate objects with conflict checks against fixed channels.
 
-A real DSP chain can be integrated behind the same API by replacing the mock provider and the `simulate_activity()` hooks with actual demodulator workers.
+A fuller DSP chain can be integrated behind the same API by extending the current RTL-SDR startup path and replacing the remaining simulation hooks with actual demodulator workers.
 
 ## Concurrency Model
 

@@ -12,7 +12,8 @@ from .config import get_settings
 from .dependencies import require_auth
 from .logging_utils import configure_logging
 from .routes import activities, channels, radio, scanners, streams, system
-from .state import MockSdrProvider, RuntimeState
+from .radio_providers import create_radio_provider
+from .state import RuntimeState
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -20,8 +21,9 @@ configure_logging(settings.log_level)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    provider = MockSdrProvider(settings)
+    provider = create_radio_provider(settings)
     capabilities, radio_state = provider.startup()
+    app.state.radio_provider = provider
     app.state.runtime_state = RuntimeState(settings, capabilities, radio_state)
     stop_event = asyncio.Event()
 
@@ -36,6 +38,7 @@ async def lifespan(app: FastAPI):
     finally:
         stop_event.set()
         task.cancel()
+        provider.shutdown()
 
 
 app = FastAPI(

@@ -25,7 +25,7 @@ The platform goal explicitly prefers a stateless runtime container. In-memory st
 
 This repository is a working foundation, not a hardware-complete SDR stack yet.
 
-- SDR I/O is represented by a Soapy-style mock provider.
+- SDR I/O now includes an RTL-SDR startup path, but the wider receive/demod pipeline is still scaffold-oriented and not yet a full production DSP implementation.
 - demodulation/audio output is simulated through logical stream objects and debug activity endpoints.
 - WebSocket auth uses a query token fallback because browser APIs cannot set arbitrary headers during basic `WebSocket` creation.
 - UI runtime config is injected at container startup, but changing those values still requires container restart.
