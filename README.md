@@ -116,6 +116,7 @@ flowchart LR
 | `INITIAL_PPM` | Frequency correction. | `0` |
 | `INITIAL_ANTENNA` | Startup antenna. | `RX` |
 | `INITIAL_BIAS_TEE` | Bias tee toggle. | `false` |
+| `SDR_FALLBACK_TO_MOCK_ON_ERROR` | When `true`, startup falls back to the mock provider if the RTL-SDR backend cannot open hardware, while preserving the original startup error in runtime state/events. | `true` |
 | `STRICT_CAPABILITY_CHECK` | Fail startup on unsupported defaults. | `true` |
 | `RETUNE_POLICY` | `deny` or `allow` retune policy. | `deny` |
 | `MAX_CHANNELS` | Maximum in-memory channels. | `32` |

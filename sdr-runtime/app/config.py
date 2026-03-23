@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     initial_ppm: float = Field(default=0.0, alias="INITIAL_PPM")
     initial_antenna: str = Field(default="RX", alias="INITIAL_ANTENNA")
     initial_bias_tee: bool = Field(default=False, alias="INITIAL_BIAS_TEE")
+    sdr_fallback_to_mock_on_error: bool = Field(default=True, alias="SDR_FALLBACK_TO_MOCK_ON_ERROR")
     strict_capability_check: bool = Field(default=True, alias="STRICT_CAPABILITY_CHECK")
     retune_policy: Literal["deny", "allow"] = Field(default="deny", alias="RETUNE_POLICY")
 
