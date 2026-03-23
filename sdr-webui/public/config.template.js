@@ -1,0 +1,6 @@
+window.__RUNTIME_CONFIG__ = {
+  SDR_API_BASE_URL: '${SDR_API_BASE_URL}',
+  SDR_API_TOKEN: '${SDR_API_TOKEN}',
+  UI_BIND: '${UI_BIND}',
+  UI_PORT: '${UI_PORT}'
+};

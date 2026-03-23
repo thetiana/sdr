@@ -1,0 +1,13 @@
+{
+  "name": "Metro Dispatch Sweep",
+  "frequencies_hz": [162400000, 162425000, 162450000],
+  "modulation": "NFM",
+  "bandwidth_hz": 12500,
+  "dwell_ms": 600,
+  "hold_ms": 3000,
+  "resume_delay_ms": 800,
+  "priority_frequencies_hz": [162450000],
+  "enabled": true,
+  "mode": "retune",
+  "protect_fixed_channels": true
+}
